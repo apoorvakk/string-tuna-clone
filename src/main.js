@@ -6,13 +6,12 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js"
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js"
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js"
 import gsap from "gsap"
-import GUI from 'lil-gui'
 import fragmentShader from "./shaders/fragment.glsl"
 import vertexShader from "./shaders/vertex.glsl"
 import rippleFragmentShader from "./shaders/rippleFragment.glsl"
 import rippleVertexShader from "./shaders/rippleVertex.glsl"
 
-let scene, camera, renderer, sword, katanaMesh, sheathMesh, composer, ripplePass, scrollMsgEl, gui
+let scene, camera, renderer, sword, katanaMesh, sheathMesh, composer, ripplePass, scrollMsgEl
 let initialKatanaX = 0
 let initialSheathX = 0
 let baseScale = 1
@@ -309,40 +308,7 @@ function init() {
 
 
 
-    // --- GUI Setup ---
-    gui = new GUI()
-    let isGuiActive = false
-    gui.domElement.addEventListener('pointerdown', () => { isGuiActive = true })
-    window.addEventListener('pointerup', () => { isGuiActive = false })
-    window.isGuiActive = () => isGuiActive // Exposed for animate loop
-
-    const rotFolder = gui.addFolder('Sword Rotation')
-    rotFolder.add(sword.rotation, 'x', -Math.PI, Math.PI).name('X Rotation').listen()
-    rotFolder.add(sword.rotation, 'y', -Math.PI, Math.PI).name('Y Rotation').listen()
-    rotFolder.add(sword.rotation, 'z', -Math.PI, Math.PI).name('Z Rotation').listen()
-    rotFolder.open()
-
-    if (katanaMesh) {
-      const katanaFolder = gui.addFolder('Katana')
-      katanaFolder.add(katanaMesh.position, 'x', -10, 10).name('Pos X').listen()
-      katanaFolder.add(katanaMesh.position, 'y', -10, 10).name('Pos Y').listen()
-      katanaFolder.add(katanaMesh.position, 'z', -10, 10).name('Pos Z').listen()
-      katanaFolder.add(katanaMesh.rotation, 'x', -Math.PI, Math.PI).name('Rot X').listen()
-      katanaFolder.add(katanaMesh.rotation, 'y', -Math.PI, Math.PI).name('Rot Y').listen()
-      katanaFolder.add(katanaMesh.rotation, 'z', -Math.PI, Math.PI).name('Rot Z').listen()
-      katanaFolder.open()
-    }
-
-    if (sheathMesh) {
-      const sheathFolder = gui.addFolder('Sheath')
-      sheathFolder.add(sheathMesh.position, 'x', -10, 10).name('Pos X').listen()
-      sheathFolder.add(sheathMesh.position, 'y', -10, 10).name('Pos Y').listen()
-      sheathFolder.add(sheathMesh.position, 'z', -10, 10).name('Pos Z').listen()
-      sheathFolder.add(sheathMesh.rotation, 'x', -Math.PI, Math.PI).name('Rot X').listen()
-      sheathFolder.add(sheathMesh.rotation, 'y', -Math.PI, Math.PI).name('Rot Y').listen()
-      sheathFolder.add(sheathMesh.rotation, 'z', -Math.PI, Math.PI).name('Rot Z').listen()
-      sheathFolder.open()
-    }
+    // --- GUI Setup Removed ---
   })
 
   scrollMsgEl = document.getElementById('scroll-msg')
@@ -403,11 +369,7 @@ function animate() {
     const targetPosZ = 6 - (8 * returnT)
 
 
-    window.sword = sword
-
-    const guiIsActive = window.isGuiActive && window.isGuiActive()
-
-    if (sword && !guiIsActive) {
+    if (sword) {
       sword.rotation.x += (targetRotX - sword.rotation.x) * 0.05
       sword.rotation.y += (targetRotY - sword.rotation.y) * 0.05
       sword.rotation.z += (targetRotZ - sword.rotation.z) * 0.05
@@ -422,17 +384,17 @@ function animate() {
       sword.scale.z += (currentTargetScale - sword.scale.z) * 0.05
     }
 
-    if (sheathMesh && !guiIsActive) {
+    if (sheathMesh) {
       // 1. Initial separation (pre-text)
       const sheathIntroProgress = Math.min(scrollDistVh / 0.9, 1.0)
       const introSheathX = sheathIntroProgress * .7
       const introSheathRotZ = sheathIntroProgress * .35 // Slight rotation from the beginning
 
-      // 2. Concentrate phase animation (0.0 to 0.33 of textProgress)
-      const concentrateT = Math.max(0, Math.min(textProgress / 0.33, 1.0))
+      // 2. Concentrate phase animation (reaches target faster)
+      const concentrateT = Math.max(0, Math.min(textProgress / 0.15, 1.0))
       
-      // 3. Pose timing - reaches final pose by the middle of "Keep scrolling" section (0.5)
-      const posePeakT = Math.max(0, Math.min(textProgress / 0.5, 1.0))
+      // 3. Pose timing - reaches final pose earlier (by 0.25 progress)
+      const posePeakT = Math.max(0, Math.min(textProgress / 0.25, 1.0))
       
       // X-axis only spin that starts AFTER the pose reaches its final target
       const extraSpinX = Math.max(0, textProgress - 0.5) * (Math.PI * 4)
@@ -445,12 +407,12 @@ function animate() {
       const cappedScrollVh = Math.min(scrollDistVh, textScrollCap)
       const targetSheathY = Math.pow(cappedScrollVh, 2.1) * 0.1 
       
-      const targetSheathZ = concentrateT * 0.2 // Slightly more in +Z
+      const targetSheathZ = concentrateT * -0.05 // Slightly more in -Z
 
-      // Apply positions with smoothing
-      sheathMesh.position.x += (targetSheathX - sheathMesh.position.x) * 0.05
-      sheathMesh.position.y += (targetSheathY - sheathMesh.position.y) * 0.05
-      sheathMesh.position.z += (targetSheathZ - sheathMesh.position.z) * 0.05
+      // Apply positions with snappier smoothing
+      sheathMesh.position.x += (targetSheathX - sheathMesh.position.x) * 0.1
+      sheathMesh.position.y += (targetSheathY - sheathMesh.position.y) * 0.1
+      sheathMesh.position.z += (targetSheathZ - sheathMesh.position.z) * 0.1
 
       // Rotations - Continues spinning on X ONLY after settling into the final requested pose
       // Requested Pose: Rot X: 1.88988, Rot Y: 0, Rot Z: 3.08414
@@ -458,15 +420,27 @@ function animate() {
       const targetSheathRotY = 0
       const targetSheathRotZ = introSheathRotZ + posePeakT * (3.08414 - introSheathRotZ)
 
-      sheathMesh.rotation.x += (targetSheathRotX - sheathMesh.rotation.x) * 0.05
-      sheathMesh.rotation.y += (targetSheathRotY - sheathMesh.rotation.y) * 0.05
-      sheathMesh.rotation.z += (targetSheathRotZ - sheathMesh.rotation.z) * 0.05
+      sheathMesh.rotation.x += (targetSheathRotX - sheathMesh.rotation.x) * 0.1
+      sheathMesh.rotation.y += (targetSheathRotY - sheathMesh.rotation.y) * 0.1
+      sheathMesh.rotation.z += (targetSheathRotZ - sheathMesh.rotation.z) * 0.1
     }
 
-    if (katanaMesh && !guiIsActive) {
+    if (katanaMesh) {
+      // Transition to final pose by midpoint of text progress (now faster)
+      const katanaPoseT = Math.max(0, Math.min(textProgress / 0.25, 1.0))
+      
+      // Values from user screenshot
+      const targetKatanaX = -0.05 * (1 - katanaPoseT) + (-0.06 * katanaPoseT)
+      const targetKatanaY = 0.08 * katanaPoseT
+      const targetKatanaZ = -0.18 * katanaPoseT
+
+      katanaMesh.position.x += (targetKatanaX - katanaMesh.position.x) * 0.05
+      katanaMesh.position.y += (targetKatanaY - katanaMesh.position.y) * 0.05
+      katanaMesh.position.z += (targetKatanaZ - katanaMesh.position.z) * 0.05
+
       // Rotate katana in +x direction on scroll starting from text section
-      const targetKatanaRotX = textProgress * (Math.PI * 2)
-      katanaMesh.rotation.x += (targetKatanaRotX - katanaMesh.rotation.x) * 0.5
+      const targetKatanaRotX = textProgress * (Math.PI * 4)
+      katanaMesh.rotation.x += (targetKatanaRotX - katanaMesh.rotation.x) * 0.05
     }
 
     // --- Dynamic Center Text Animation ---
